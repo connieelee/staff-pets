@@ -2,9 +2,9 @@ const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
-const { db, Owner, Pet } = require('./db.js');
 
 const app = express();
+const { db, Owner, Pet } = require('./db.js');
 
 // logging and parsing middleware
 app.use(morgan('dev'));
@@ -22,12 +22,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './index.html'));
 });
 
-// API routes
-app.param('id', (req, res, next, id) => {
-  Owner.findById(id)
+// API ROUTES
+app.param('ownerid', (req, res, next, ownerid) => {
+  Owner.findById(ownerid)
     .then((owner) => {
-      if (!owner) next(new Error('owner not found'));
-      else req.owner = owner;
+      if (!owner) return next(new Error('not found'));
+      req.owner = owner;
       next();
     })
     .catch(next);
@@ -39,15 +39,18 @@ app.get('/owners', (req, res, next) => {
     .catch(next);
 });
 
-app.get('/owners/:id/pets', (req, res, next) => {
+app.get('/owners/:ownerid/pets', (req, res, next) => {
   req.owner.getPets()
     .then(pets => res.send(pets))
     .catch(next);
 });
 
-app.post('/owners/:id/pets', (req, res, next) => {
+app.post('/owners/:ownerid/pets', (req, res, next) => {
   Pet.create({ name: req.body.name })
-    .then(pet => req.owner.addPet(pet))
+    .then(pet => Promise.all([req.owner.addPet(pet), pet]))
+    .then(([owner, pet]) => {
+      res.status(201).send(pet);
+    })
     .catch(next);
 });
 
